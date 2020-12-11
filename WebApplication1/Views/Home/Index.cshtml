@@ -1,0 +1,87 @@
+﻿@model IEnumerable<WebApplication1.Models.Message>
+@{
+    //ViewData["Title"] = "Home Page";
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>SignalR Chat</title>
+</head>
+<body>
+    <div id="header"></div><br />
+
+    <!--Отображение окна для чата-->
+    <div id="chatWindow" style="width: 500px;	height: 500px; outline: 2px solid #000; border: 3px solid #fff; border-radius: 10px; overflow-y:scroll;">
+        <div id="chatroom">
+            @foreach (var msg in Model)
+            {
+                <b>@msg.time.Substring(11, 5) @msg.user</b>
+                <p>@msg.message</p>
+            }
+        </div>
+    </div>
+    <div id="dickheader"></div><br />
+
+    <!--Эта форма отправляет данные в контроллер для добавления сообщения в базу данных-->
+    <div id="inputForm">
+        <form asp-action="Send" method="post" data-ajax="true" data-ajax-success="clearer()">   
+            <input type="text" id="message" name="message" autocomplete="off" style="width: 400px;" />
+            <input id="userName" name="userName" type="text" value="@ViewBag.userName" hidden />
+            <input type="submit" id="sendBtn" value="Отправить" />
+        </form>
+    </div>
+
+    <script src="js/signalr/dist/browser/signalr.min.js"></script>
+    <script>
+        const hubConnection = new signalR.HubConnectionBuilder()
+            .withUrl("/chat")
+            .build();
+
+        let userName = '';
+        // получение сообщения от сервера
+        hubConnection.on('Send', function (message, userName, time) {
+
+            // создаем элемент <b> для имени пользователя
+            let userNameElem = document.createElement("b");
+            userNameElem.appendChild(document.createTextNode(time + " " + userName));
+
+            // создает элемент <p> для сообщения пользователя
+            let elem = document.createElement("p");
+            //elem.appendChild(userNameElem);
+            elem.appendChild(document.createTextNode(message));
+
+
+            var firstElem = document.getElementById("chatroom").firstChild;
+            document.getElementById("chatroom").insertAdjacentElement("beforeend", userNameElem, firstElem);
+            document.getElementById("chatroom").insertAdjacentElement("beforeend", elem, firstElem);
+            var div = document.getElementById("chatWindow");
+            div.scrollTop = div.scrollHeight - div.clientHeight;
+        });
+
+        // отправка сообщения на сервер
+        document.getElementById("sendBtn").addEventListener("click", function (e) {
+            userName = document.getElementById("userName").value;
+            let message = document.getElementById("message").value;
+            hubConnection.invoke("Send", message, userName);
+        });
+
+        // Прокрутка чата вниз при обновлении страницы
+        document.addEventListener("DOMContentLoaded", function (e) {
+            var div = document.getElementById("chatWindow");
+            div.scrollTop = div.scrollHeight - div.clientHeight;
+        });
+        hubConnection.start();
+
+        // Очистка поля ввода после отправки сообщения
+        function clearer() {
+            document.getElementById("message").value = "";
+        };
+    </script>
+
+    @section scripts{
+        <script src="~/lib/jquery/dist/jquery.js"></script>
+        <script src="~/lib/jquery/dist/jquery-unobtrusive-ajax.min.js"></script>
+    }
+</body>
+</html>
